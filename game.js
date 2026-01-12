@@ -4,12 +4,12 @@ const coinsSpan = document.getElementById("coins");
 const lvlText = document.getElementById("lvlText");
 
 let tileSize = 20;
-let gridSize = 11; // ขนาดด่านเริ่มต้น
+let gridSize = 11; 
 let maze = [];
 let player = { x: 1, y: 1 };
 let coinsCount = 0;
 
-// 1. ระบบสร้างเขาวงกตแบบสุ่ม (Perfect Maze Algorithm)
+// 1. ระบบสร้างเขาวงกตแบบสุ่ม
 function createMaze(size) {
     let newMaze = Array(size).fill().map(() => Array(size).fill(1));
     
@@ -26,14 +26,15 @@ function createMaze(size) {
         }
     }
     carve(1, 1);
-    newMaze[size - 2][size - 2] = 2; // ทางออก
+    newMaze[size - 2][size - 2] = 2; // Exit (ทางออก)
 
-    // 2. เพิ่ม Coins (3) และ Traps (4)
+    // 2. เพิ่มเฉพาะ Coins (3)
     for (let i = 0; i < size * 1.5; i++) {
         let rx = Math.floor(Math.random() * size);
         let ry = Math.floor(Math.random() * size);
+        // วางเหรียญเฉพาะบนทางเดิน (0) และไม่ใช่จุดเริ่ม
         if (newMaze[ry][rx] === 0 && !(rx === 1 && ry === 1)) {
-            newMaze[ry][rx] = Math.random() > 0.3 ? 3 : 4;
+            newMaze[ry][rx] = 3; 
         }
     }
     return newMaze;
@@ -41,7 +42,6 @@ function createMaze(size) {
 
 function changeLevel(size) {
     gridSize = size;
-    // ปรับขนาด Canvas ให้พอดีกับจำนวนช่อง ไม่ให้ตกขอบ
     canvas.width = gridSize * tileSize;
     canvas.height = gridSize * tileSize;
     
@@ -72,23 +72,16 @@ function draw() {
                 ctx.shadowBlur = 10; ctx.shadowColor = "gold";
                 ctx.fillRect(xPos + 4, yPos + 4, tileSize - 8, tileSize - 8);
                 ctx.shadowBlur = 0;
-            } else if (maze[y][x] === 3) { // เหรียญ
+            } else if (maze[y][x] === 3) { // เหรียญ (สีเขียวนีออน)
                 ctx.fillStyle = "#00ff88";
                 ctx.beginPath();
                 ctx.arc(xPos + tileSize/2, yPos + tileSize/2, 4, 0, Math.PI*2);
-                ctx.fill();
-            } else if (maze[y][x] === 4) { // กับดัก (หนาม)
-                ctx.fillStyle = "#ff4d4d";
-                ctx.beginPath();
-                ctx.moveTo(xPos + 2, yPos + tileSize - 2);
-                ctx.lineTo(xPos + tileSize/2, yPos + 2);
-                ctx.lineTo(xPos + tileSize - 2, yPos + tileSize - 2);
                 ctx.fill();
             }
         }
     }
 
-    // วาดผู้เล่น (ไม่ให้ตกขอบ)
+    // วาดผู้เล่น
     ctx.fillStyle = "#00f2fe";
     ctx.shadowBlur = 10; ctx.shadowColor = "#00f2fe";
     ctx.fillRect(player.x * tileSize + 4, player.y * tileSize + 4, tileSize - 8, tileSize - 8);
@@ -104,16 +97,12 @@ function movePlayer(dx, dy) {
             player.x = nx;
             player.y = ny;
 
-            // เช็คว่าเดินไปทับ Object อะไร
             if (maze[ny][nx] === 2) {
-                showModal("VICTORY!", `เก่งมาก! เก็บเหรียญได้ทั้งหมด ${coinsCount} เหรียญ`);
+                showModal("VICTORY!", `ยินดีด้วย! คุณหาทางออกพบและเก็บเหรียญได้ ${coinsCount} เหรียญ`);
             } else if (maze[ny][nx] === 3) {
                 coinsCount++;
                 coinsSpan.innerText = coinsCount;
-                maze[ny][nx] = 0; // เก็บเหรียญแล้วหายไป
-            } else if (maze[ny][nx] === 4) {
-                alert("โดนกับดัก! เริ่มใหม่นะ");
-                player = { x: 1, y: 1 }; // ส่งกลับจุดเริ่ม
+                maze[ny][nx] = 0; // เก็บแล้วเปลี่ยนเป็นทางเดินปกติ
             }
         }
     }
@@ -128,7 +117,7 @@ function showModal(title, desc) {
 
 function closeModal() {
     document.getElementById("modal").style.display = "none";
-    changeLevel(gridSize); // เริ่มใหม่ในความยากเดิม
+    changeLevel(gridSize); 
 }
 
 window.addEventListener("keydown", (e) => {
@@ -141,5 +130,4 @@ window.addEventListener("keydown", (e) => {
     if (e.key === "ArrowRight") movePlayer(1, 0);
 });
 
-// เริ่มเกมครั้งแรกที่ Easy
 changeLevel(11);
