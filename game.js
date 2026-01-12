@@ -1,118 +1,145 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const coinDisplay = document.getElementById("coinCount");
+const coinsSpan = document.getElementById("coins");
+const lvlText = document.getElementById("lvlText");
 
 let tileSize = 20;
+let gridSize = 11; // ขนาดด่านเริ่มต้น
 let maze = [];
 let player = { x: 1, y: 1 };
-let coins = 0;
-let gridSize = 21;
+let coinsCount = 0;
 
-// 1. ระบบสร้างเขาวงกตแบบสุ่ม (Recursive Backtracking)
-function generateMaze(size) {
-    let m = Array(size).fill().map(() => Array(size).fill(1));
+// 1. ระบบสร้างเขาวงกตแบบสุ่ม (Perfect Maze Algorithm)
+function createMaze(size) {
+    let newMaze = Array(size).fill().map(() => Array(size).fill(1));
     
-    function walk(x, y) {
-        m[y][x] = 0;
-        let dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(() => Math.random() - 0.5);
+    function carve(x, y) {
+        newMaze[y][x] = 0;
+        let directions = [[0, 2], [0, -2], [2, 0], [-2, 0]].sort(() => Math.random() - 0.5);
         
-        for (let [dx, dy] of dirs) {
+        for (let [dx, dy] of directions) {
             let nx = x + dx, ny = y + dy;
-            if (nx > 0 && nx < size-1 && ny > 0 && ny < size-1 && m[ny][nx] === 1) {
-                m[y + dy/2][x + dx/2] = 0;
-                walk(nx, ny);
+            if (nx > 0 && nx < size - 1 && ny > 0 && ny < size - 1 && newMaze[ny][nx] === 1) {
+                newMaze[y + dy / 2][x + dx / 2] = 0;
+                carve(nx, ny);
             }
         }
     }
-    walk(1, 1);
-    m[size-2][size-2] = 2; // Exit
+    carve(1, 1);
+    newMaze[size - 2][size - 2] = 2; // ทางออก
 
-    // เพิ่ม Objects (3 = Coin, 4 = Trap)
-    for(let i=0; i < size*1.5; i++) {
+    // 2. เพิ่ม Coins (3) และ Traps (4)
+    for (let i = 0; i < size * 1.5; i++) {
         let rx = Math.floor(Math.random() * size);
         let ry = Math.floor(Math.random() * size);
-        if(m[ry][rx] === 0 && !(rx===1 && ry===1)) {
-            m[ry][rx] = (Math.random() > 0.3) ? 3 : 4;
+        if (newMaze[ry][rx] === 0 && !(rx === 1 && ry === 1)) {
+            newMaze[ry][rx] = Math.random() > 0.3 ? 3 : 4;
         }
     }
-    return m;
+    return newMaze;
 }
 
-function startGame(size) {
+function changeLevel(size) {
     gridSize = size;
-    canvas.width = canvas.height = size * tileSize;
-    maze = generateMaze(size);
+    // ปรับขนาด Canvas ให้พอดีกับจำนวนช่อง ไม่ให้ตกขอบ
+    canvas.width = gridSize * tileSize;
+    canvas.height = gridSize * tileSize;
+    
+    lvlText.innerText = size === 11 ? "Easy" : size === 21 ? "Medium" : "Hard";
+    coinsCount = 0;
+    coinsSpan.innerText = coinsCount;
+    
+    maze = createMaze(gridSize);
     player = { x: 1, y: 1 };
-    coins = 0;
-    coinDisplay.innerText = coins;
-    document.getElementById("lvlName").innerText = size < 15 ? "Easy" : size < 25 ? "Medium" : "Hard";
     draw();
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     for (let y = 0; y < gridSize; y++) {
         for (let x = 0; x < gridSize; x++) {
-            let px = x * tileSize, py = y * tileSize;
-            if (maze[y][x] === 1) {
-                ctx.fillStyle = "#2c3e50";
-                ctx.fillRect(px, py, tileSize, tileSize);
-            } else if (maze[y][x] === 2) {
-                ctx.fillStyle = "#FFD700"; // Exit
+            let xPos = x * tileSize;
+            let yPos = y * tileSize;
+
+            if (maze[y][x] === 1) { // กำแพง
+                ctx.fillStyle = "#1e1e2f";
+                ctx.fillRect(xPos, yPos, tileSize, tileSize);
+                ctx.strokeStyle = "#333";
+                ctx.strokeRect(xPos, yPos, tileSize, tileSize);
+            } else if (maze[y][x] === 2) { // ทางออก
+                ctx.fillStyle = "#ffcc00";
                 ctx.shadowBlur = 10; ctx.shadowColor = "gold";
-                ctx.fillRect(px+2, py+2, tileSize-4, tileSize-4);
+                ctx.fillRect(xPos + 4, yPos + 4, tileSize - 8, tileSize - 8);
                 ctx.shadowBlur = 0;
-            } else if (maze[y][x] === 3) {
-                ctx.fillStyle = "#ff0"; // Coin
-                ctx.beginPath(); ctx.arc(px+tileSize/2, py+tileSize/2, 4, 0, Math.PI*2); ctx.fill();
-            } else if (maze[y][x] === 4) {
-                ctx.fillStyle = "#ff4d4d"; // Trap
-                ctx.beginPath(); ctx.moveTo(px+2, py+tileSize-2); ctx.lineTo(px+tileSize/2, py+2); ctx.lineTo(px+tileSize-2, py+tileSize-2); ctx.fill();
+            } else if (maze[y][x] === 3) { // เหรียญ
+                ctx.fillStyle = "#00ff88";
+                ctx.beginPath();
+                ctx.arc(xPos + tileSize/2, yPos + tileSize/2, 4, 0, Math.PI*2);
+                ctx.fill();
+            } else if (maze[y][x] === 4) { // กับดัก (หนาม)
+                ctx.fillStyle = "#ff4d4d";
+                ctx.beginPath();
+                ctx.moveTo(xPos + 2, yPos + tileSize - 2);
+                ctx.lineTo(xPos + tileSize/2, yPos + 2);
+                ctx.lineTo(xPos + tileSize - 2, yPos + tileSize - 2);
+                ctx.fill();
             }
         }
     }
-    // Player
+
+    // วาดผู้เล่น (ไม่ให้ตกขอบ)
     ctx.fillStyle = "#00f2fe";
-    ctx.shadowBlur = 8; ctx.shadowColor = "#00f2fe";
-    ctx.fillRect(player.x*tileSize+4, player.y*tileSize+4, tileSize-8, tileSize-8);
+    ctx.shadowBlur = 10; ctx.shadowColor = "#00f2fe";
+    ctx.fillRect(player.x * tileSize + 4, player.y * tileSize + 4, tileSize - 8, tileSize - 8);
     ctx.shadowBlur = 0;
 }
 
 function movePlayer(dx, dy) {
-    let nx = player.x + dx, ny = player.y + dy;
-    if (maze[ny] && maze[ny][nx] !== undefined && maze[ny][nx] !== 1) {
-        player.x = nx; player.y = ny;
-        
-        if (maze[ny][nx] === 2) {
-            showModal("VICTORY!", `คุณทำสำเร็จ! เก็บเหรียญได้: ${coins} เหรียญ`);
-        } else if (maze[ny][nx] === 3) {
-            coins++; maze[ny][nx] = 0; coinDisplay.innerText = coins;
-        } else if (maze[ny][nx] === 4) {
-            player = { x: 1, y: 1 }; // Reset position on trap
-            alert("โดนกับดัก! เริ่มใหม่นะ");
+    let nx = player.x + dx;
+    let ny = player.y + dy;
+
+    if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+        if (maze[ny][nx] !== 1) {
+            player.x = nx;
+            player.y = ny;
+
+            // เช็คว่าเดินไปทับ Object อะไร
+            if (maze[ny][nx] === 2) {
+                showModal("VICTORY!", `เก่งมาก! เก็บเหรียญได้ทั้งหมด ${coinsCount} เหรียญ`);
+            } else if (maze[ny][nx] === 3) {
+                coinsCount++;
+                coinsSpan.innerText = coinsCount;
+                maze[ny][nx] = 0; // เก็บเหรียญแล้วหายไป
+            } else if (maze[ny][nx] === 4) {
+                alert("โดนกับดัก! เริ่มใหม่นะ");
+                player = { x: 1, y: 1 }; // ส่งกลับจุดเริ่ม
+            }
         }
     }
     draw();
 }
 
-function showModal(title, msg) {
-    document.getElementById("modalTitle").innerText = title;
-    document.getElementById("modalMessage").innerText = msg;
-    document.getElementById("levelModal").style.display = "flex";
+function showModal(title, desc) {
+    document.getElementById("mTitle").innerText = title;
+    document.getElementById("mDesc").innerText = desc;
+    document.getElementById("modal").style.display = "flex";
 }
 
 function closeModal() {
-    document.getElementById("levelModal").style.display = "none";
-    startGame(gridSize);
+    document.getElementById("modal").style.display = "none";
+    changeLevel(gridSize); // เริ่มใหม่ในความยากเดิม
 }
 
-window.addEventListener("keydown", e => {
-    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) e.preventDefault();
+window.addEventListener("keydown", (e) => {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+    }
     if (e.key === "ArrowUp") movePlayer(0, -1);
     if (e.key === "ArrowDown") movePlayer(0, 1);
     if (e.key === "ArrowLeft") movePlayer(-1, 0);
     if (e.key === "ArrowRight") movePlayer(1, 0);
 });
 
-// Start initial game
-startGame(21);
+// เริ่มเกมครั้งแรกที่ Easy
+changeLevel(11);
